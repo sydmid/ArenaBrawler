@@ -15,4 +15,9 @@
     <ProjectReference Include="..\..\lib\hf-state-streaming\engine-dotnet\src\Engine.Core\Engine.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.86" />
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.26.301" />
+  </ItemGroup>
+
 </Project>
