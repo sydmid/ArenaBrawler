@@ -41,6 +41,3 @@ The infrastructure is fully containerized for a frictionless development experie
 ```
 
 Once the containers are healthy, you can launch the server and client components directly via the .NET CLI or your preferred IDE.
-
----
-*Built to demonstrate rigorous technical standards and systems-level C# engineering.*
