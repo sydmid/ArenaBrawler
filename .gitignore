@@ -1,0 +1,21 @@
+## Visual Studio / .NET Core
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Raylib Native binaries & caches
+runtimes/
+libraylib*
+
+## OS generated
+.DS_Store
+Thumbs.db
+
+## Test & Coverage Results
+TestResults/
+*.trx
+coverage/
