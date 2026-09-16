@@ -1,32 +1,34 @@
 using System;
 using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
 using Game.Shared.Models;
 using Game.Shared.Network;
 using HfEngine.Protocol;
 using HfEngine.Matching;
+using Game.Server.Network;
 
 namespace Game.Server
 {
-    public sealed class ConsoleEgressSink : IEgressSink
-    {
-        public void EmitAck(in OrderAckPayload ack) => Console.WriteLine($"[Server Egress] OrderAck: Id={ack.OrderId}, Status={ack.Status}");
-        public void EmitTrade(in OrderExecutedPayload trade) => Console.WriteLine($"[Server Egress] Executed: TradeId={trade.TradeId}, Price={trade.ExecutionPrice}");
-        public void EmitL2Delta(in OrderBookL2DeltaPayload delta) => Console.WriteLine($"[Server Egress] L2Delta: Price={delta.Price}, Qty={delta.NewQuantity}");
-    }
-
     public static class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             Console.WriteLine("===========================================================");
             Console.WriteLine("   ARENA BRAWLER AUTHORITATIVE SERVER (.NET Core 9.0)      ");
             Console.WriteLine("===========================================================");
 
-            using var pool = new OrderMemoryPool();
-            var egressSink = new ConsoleEgressSink();
-            using var orderBook = new OrderBook(assetId: 101, pool, egressSink);
+            using var marketplace = new Game.Server.Economy.MarketplaceEngine(101);
+            marketplace.OnL2Delta += delta =>
+            {
+                Console.WriteLine($"[Server Egress] L2Delta: Price={delta.Price}, Qty={delta.NewQuantity}");
+            };
+            marketplace.OnTradeExecuted += trade =>
+            {
+                Console.WriteLine($"[Server Egress] Executed: TradeId={trade.TradeId}, Price={trade.ExecutionPrice}");
+            };
 
-            Console.WriteLine($"[Server] Linked hf-state-streaming engine successfully. Market Asset: {orderBook.AssetId}");
+            Console.WriteLine($"[Server] Linked MarketplaceEngine successfully.");
 
             // Verify Game.Shared payload schema contracts
             EntityState serverEntity = new(
@@ -43,7 +45,8 @@ namespace Game.Server
                 sequence: 1
             );
 
-            Span<byte> stateBuffer = stackalloc byte[EntityState.BinarySize];
+            byte[] stateBufferArray = new byte[EntityState.BinarySize];
+            Span<byte> stateBuffer = stateBufferArray.AsSpan();
             serverEntity.WriteTo(stateBuffer);
             EntityState deserialized = EntityState.ReadFrom(stateBuffer);
 
@@ -51,7 +54,21 @@ namespace Game.Server
             Console.WriteLine($"[Server] Verified unmanaged binary serialization. Payload size: {EntityState.BinarySize} bytes.");
 
             Console.WriteLine("[Server] Authoritative simulation loop initialized at 60 Hz tick target.");
-            Console.WriteLine("[Server] Server ready for Phase 2 gameplay integration.");
+
+            using var server = new GameServer(9050);
+            server.Start();
+
+            Console.WriteLine("[Server] Server running. Press Ctrl+C to exit.");
+
+            var tcs = new TaskCompletionSource();
+            Console.CancelKeyPress += (s, e) =>
+            {
+                e.Cancel = true;
+                tcs.SetResult();
+            };
+
+            await tcs.Task;
+            Console.WriteLine("[Server] Server shutting down.");
         }
     }
 }

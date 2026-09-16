@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  oracle-db:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: arena-brawler-db
+    environment:
+      - ORACLE_PASSWORD=ArenaPassword123
+      - APP_USER=ARENA_ADMIN
+      - APP_PASSWORD=ArenaPassword123
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+      - ./scripts/schema.sql:/container-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'exit' | sqlplus -s system/ArenaPassword123@localhost:1521/XEPDB1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  game-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arena-brawler-server
+    depends_on:
+      oracle-db:
+        condition: service_healthy
+    environment:
+      - ORACLE_CONNECTION_STRING=Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=oracle-db)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=XEPDB1)));User Id=ARENA_ADMIN;Password=ArenaPassword123;
+    ports:
+      - "9050:9050/udp"
+    restart: unless-stopped
+
+volumes:
+  oracle-data:

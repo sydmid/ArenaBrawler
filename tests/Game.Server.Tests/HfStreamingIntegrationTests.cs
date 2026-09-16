@@ -41,7 +41,7 @@ namespace Game.Server.Tests
             Assert.Equal(101u, _book.AssetId);
 
             FrameHeader buyHeader = new(ProtocolConstants.MsgTypeNewOrder, ProtocolConstants.FlagSideBuy, 32);
-            InboundFrame buyFrame = new(buyHeader, orderId: 1, playerOrTraderId: 501, price: 15000, quantity: 10, assetId: 101);
+            InboundFrame buyFrame = new(buyHeader, orderId: 1, traderId: 501, price: 15000, qty: 10, assetId: 101);
 
             _book.ProcessInboundFrame(in buyFrame);
 
