@@ -22,11 +22,13 @@ namespace Game.Server.Network
 
         // Entity state dictionary by player Id
         private readonly ConcurrentDictionary<ulong, EntityState> _entities = new();
+        private readonly Game.Server.Economy.PersistenceChannel? _persistenceChannel;
 
-        public GameServer(int port = 9050)
+        public GameServer(int port = 9050, Game.Server.Economy.PersistenceChannel? channel = null)
         {
             _udpClient = new UdpClient(port);
             _udpClient.Client.Blocking = false;
+            _persistenceChannel = channel;
         }
 
         public void Start()
@@ -95,6 +97,14 @@ namespace Game.Server.Network
                     _serverTick++;
                     ProcessInputs(deltaTimeMs / 1000.0f);
                     BroadcastSnapshot();
+
+                    if (_persistenceChannel != null)
+                    {
+                        foreach (var state in _entities.Values)
+                        {
+                            _persistenceChannel.TryWrite(new Game.Server.Economy.PersistenceItem(in state));
+                        }
+                    }
 
                     lastTickTime = currentTickTime;
                 }

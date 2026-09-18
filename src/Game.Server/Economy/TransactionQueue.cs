@@ -9,40 +9,26 @@ namespace Game.Server.Economy
 {
     public class TransactionQueue : IDisposable
     {
-        private readonly ConcurrentQueue<OrderExecutedPayload> _pendingTrades = new();
-        private readonly CancellationTokenSource _cts = new();
+        private readonly PersistenceChannel _channel;
+
+        public TransactionQueue(PersistenceChannel channel)
+        {
+            _channel = channel;
+        }
 
         public void EnqueueTrade(OrderExecutedPayload trade)
         {
-            _pendingTrades.Enqueue(trade);
+            _channel.TryWrite(new PersistenceItem(in trade));
         }
 
         public void Start()
         {
-            Task.Run(ProcessQueueAsync, _cts.Token);
-        }
-
-        private async Task ProcessQueueAsync()
-        {
-            while (!_cts.Token.IsCancellationRequested)
-            {
-                if (_pendingTrades.TryDequeue(out var trade))
-                {
-                    // This is where we would save to Oracle DB
-                    // For now, we simulate processing
-                    await Task.Delay(5);
-                    Console.WriteLine($"[TransactionQueue] Persisted trade {trade.TradeId} to database.");
-                }
-                else
-                {
-                    await Task.Delay(10);
-                }
-            }
+            // Background processing is now handled by DatabaseWorkerService
         }
 
         public void Dispose()
         {
-            _cts.Cancel();
+            // Resources are managed elsewhere
         }
     }
 }

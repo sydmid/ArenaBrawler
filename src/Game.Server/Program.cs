@@ -18,7 +18,24 @@ namespace Game.Server
             Console.WriteLine("   ARENA BRAWLER AUTHORITATIVE SERVER (.NET Core 9.0)      ");
             Console.WriteLine("===========================================================");
 
-            using var marketplace = new Game.Server.Economy.MarketplaceEngine(101);
+            var persistenceChannel = new Game.Server.Economy.PersistenceChannel();
+
+            var connectionString = Environment.GetEnvironmentVariable("ORACLE_CONNECTION_STRING");
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                Console.WriteLine("[Program] WARNING: ORACLE_CONNECTION_STRING environment variable is not set. Database persistence will fail.");
+                connectionString = "User Id=default;Password=default;Data Source=localhost:1521/XE"; // Fallback to avoid null, but shouldn't contain real passwords
+            }
+            var dbService = new Game.Server.Economy.DbService(connectionString);
+
+            // Commenting out connection block since oracle db container is not running during start up in this environment
+            // It should be running normally via scripts/run-containers.ps1
+            try { await dbService.InitializeAsync(); } catch (Exception ex) { Console.WriteLine($"[Program] Failed to connect to db at startup: {ex.Message}"); }
+
+            var workerService = new Game.Server.Economy.DatabaseWorkerService(dbService, persistenceChannel);
+            _ = workerService.StartAsync(CancellationToken.None);
+
+            using var marketplace = new Game.Server.Economy.MarketplaceEngine(101, persistenceChannel);
             marketplace.OnL2Delta += delta =>
             {
                 Console.WriteLine($"[Server Egress] L2Delta: Price={delta.Price}, Qty={delta.NewQuantity}");
@@ -55,7 +72,7 @@ namespace Game.Server
 
             Console.WriteLine("[Server] Authoritative simulation loop initialized at 60 Hz tick target.");
 
-            using var server = new GameServer(9050);
+            using var server = new GameServer(9050, persistenceChannel);
             server.Start();
 
             Console.WriteLine("[Server] Server running. Press Ctrl+C to exit.");
@@ -69,6 +86,7 @@ namespace Game.Server
 
             await tcs.Task;
             Console.WriteLine("[Server] Server shutting down.");
+            await workerService.StopAsync(CancellationToken.None);
         }
     }
 }

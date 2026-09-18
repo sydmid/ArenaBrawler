@@ -35,13 +35,14 @@ namespace Game.Server.Economy
             }
         }
 
-        private readonly TransactionQueue _txQueue = new();
+        private readonly TransactionQueue _txQueue;
 
-        public MarketplaceEngine(uint assetId)
+        public MarketplaceEngine(uint assetId, PersistenceChannel channel)
         {
             _pool = new OrderMemoryPool();
             var sink = new InternalEgressSink(this);
             _orderBook = new OrderBook(assetId, _pool, sink);
+            _txQueue = new TransactionQueue(channel);
 
             OnTradeExecuted += _txQueue.EnqueueTrade;
             _txQueue.Start();
