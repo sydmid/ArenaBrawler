@@ -14,7 +14,8 @@ namespace Game.Server.Tests
         public void MarketplaceEngine_ProcessesBuyAndSell_GeneratesTrade()
         {
             // Arrange
-            using var engine = new MarketplaceEngine(101);
+            var channel = new PersistenceChannel();
+            using var engine = new MarketplaceEngine(101, channel);
             var trades = new List<OrderExecutedPayload>();
 
             engine.OnTradeExecuted += trade =>
